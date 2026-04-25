@@ -69,3 +69,7 @@ ds-enhance/
 ## License
 
 [GPL-3.0](./LICENSE)
+
+## 友情链接
+
+[Linuxdo](https://linux.do)
