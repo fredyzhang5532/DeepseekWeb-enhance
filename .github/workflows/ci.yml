@@ -8,9 +8,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.10', '3.11', '3.12']
 
     steps:
@@ -51,4 +52,4 @@ jobs:
       - name: Verify server starts
         working-directory: server
         run: |
-          timeout 10 python -c "from server import app; print('OK')"
+          python -c "import sys; import threading, time; timer = threading.Timer(10, sys.exit, [1]); timer.start(); from server import app; timer.cancel(); print('OK')"

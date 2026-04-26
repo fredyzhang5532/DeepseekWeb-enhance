@@ -24,6 +24,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -61,12 +62,16 @@ class StdioMCPServer:
                 resolved = shutil.which(cmd)
                 if resolved:
                     cmd = resolved
+            kwargs: dict[str, Any] = {}
+            if sys.platform == 'win32':
+                kwargs['creationflags'] = 0x08000000  # CREATE_NO_WINDOW
             self._proc = await asyncio.create_subprocess_exec(
                 cmd, *self.args,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=merged_env,
+                **kwargs,
             )
             self._read_task = asyncio.create_task(self._read_loop())
 
@@ -103,8 +108,22 @@ class StdioMCPServer:
         if self._proc:
             try:
                 self._proc.stdin.close()
-                self._proc.terminate()
-                await asyncio.wait_for(self._proc.wait(), timeout=5)
+                if sys.platform == 'win32':
+                    # taskkill /F /T kills the process tree on Windows
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(self._proc.pid)],
+                        capture_output=True,
+                    )
+                    try:
+                        await asyncio.wait_for(self._proc.wait(), timeout=5)
+                    except asyncio.TimeoutError:
+                        self._proc.kill()
+                else:
+                    self._proc.terminate()
+                    try:
+                        await asyncio.wait_for(self._proc.wait(), timeout=5)
+                    except asyncio.TimeoutError:
+                        self._proc.kill()
             except Exception:
                 self._proc.kill()
             self._proc = None

@@ -10,9 +10,14 @@ from typing import Any
 WORKSPACE_ROOT: pathlib.Path = pathlib.Path(os.environ.get("DS_WORKSPACE", os.getcwd())).resolve()
 
 DANGEROUS_PATTERNS: list[str] = [
+    # Unix
     "rm -rf /", "rm -rf /*", ":(){ :|:& };:", "mkfs", "dd if=",
     "> /dev/sd", "chmod 777 /", "chown root",
-    "taskkill", "taskkill.exe", "kill", "pkill", "killall",
+    "kill", "pkill", "killall",
+    # Windows
+    "taskkill", "taskkill.exe",
+    "del /f /s /q", "rd /s /q", "rmdir /s /q",
+    "format ", "format.com", "diskpart",
 ]
 
 
@@ -39,6 +44,8 @@ def execute_command(command: str, timeout: int = 30) -> str:
             shell=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
             cwd=str(WORKSPACE_ROOT),
         )

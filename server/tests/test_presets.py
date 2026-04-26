@@ -52,3 +52,28 @@ class TestDangerousPatterns:
         from tools.shell import execute_command
         result = execute_command("pkill python")
         assert "Security" in result or "blocked" in result
+
+    def test_windows_del_blocked(self):
+        from tools.shell import execute_command
+        result = execute_command("del /f /s /q C:\\*")
+        assert "Security" in result or "blocked" in result
+
+    def test_windows_rd_blocked(self):
+        from tools.shell import execute_command
+        result = execute_command("rd /s /q C:\\Users")
+        assert "Security" in result or "blocked" in result
+
+    def test_windows_rmdir_blocked(self):
+        from tools.shell import execute_command
+        result = execute_command("rmdir /s /q C:\\")
+        assert "Security" in result or "blocked" in result
+
+    def test_windows_format_blocked(self):
+        from tools.shell import execute_command
+        result = execute_command("format C: /fs:ntfs /q")
+        assert "Security" in result or "blocked" in result
+
+    def test_windows_diskpart_blocked(self):
+        from tools.shell import execute_command
+        result = execute_command("diskpart /s script.txt")
+        assert "Security" in result or "blocked" in result
