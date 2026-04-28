@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DS MCP Bridge
 // @namespace    https://github.com/calendar0917/ds-enhance
-// @version      4.0.0
+// @version      4.1.0
 // @description  AI Chat 增强 — MCP 工具调用 + TTS 朗读 + 多站点适配
 // @author       ds-enhance
 // @match        https://chat.deepseek.com/*
@@ -437,14 +437,21 @@
       if (body) body = modifyRequest(body);
 
       let requestContent = '';
-      let requestLastLen = 0;
+      let requestLastParsed = 0;
 
       this.addEventListener('progress', function () {
         try {
           const rt = this.responseText || '';
-          if (rt.length <= requestLastLen) return;
-          requestLastLen = rt.length;
-          requestContent = parseSSEChunk(rt);
+          if (rt.length <= requestLastParsed) return;
+          const newPart = rt.substring(requestLastParsed);
+          // Only parse up to the last complete line to avoid dropping
+          // incomplete `data:` lines split across progress events
+          const lastNewline = newPart.lastIndexOf('\n');
+          if (lastNewline < 0) return; // no complete line yet
+          requestLastParsed += lastNewline + 1;
+          const completePart = newPart.substring(0, lastNewline + 1);
+          const newContent = parseSSEChunk(completePart);
+          if (newContent) requestContent += newContent;
 
           if (_streamDebounce) clearTimeout(_streamDebounce);
           _streamDebounce = setTimeout(() => {
@@ -456,7 +463,11 @@
       this.addEventListener('load', function () {
         try {
           const rt = this.responseText || '';
-          if (rt) requestContent = parseSSEChunk(rt);
+          if (rt.length > requestLastParsed) {
+            const newPart = rt.substring(requestLastParsed);
+            const finalContent = parseSSEChunk(newPart);
+            if (finalContent) requestContent += finalContent;
+          }
         } catch { /* ignore */ }
         if (_streamDebounce) clearTimeout(_streamDebounce);
         checkForToolCalls(requestContent);
@@ -484,7 +495,7 @@
       clone.text().then(text => {
         const content = parseSSEChunk(text);
         if (content) checkForToolCalls(content);
-      }).catch(() => {});
+      }).catch(() => { });
 
       return response;
     }
@@ -765,7 +776,7 @@
     panel.id = 'mcp-panel';
     panel.innerHTML = `
       <div class="hd">
-        <h3>DS MCP Bridge <span class="ver">v4.0.0</span></h3>
+        <h3>DS MCP Bridge <span class="ver">v4.1.0</span></h3>
         <button class="cls">&times;</button>
       </div>
       <div id="mcp-tabs">
@@ -903,7 +914,7 @@
           });
         });
         healthInfo = resp;
-      } catch {}
+      } catch { }
 
       const tools = await client.listTools();
       toolRegistry = tools;
@@ -1176,8 +1187,8 @@
           const btnClass = 'ext-preset-install';
           const btnStyle = installed
             ? (hasParams
-                ? 'background:#222;color:#7aa2f7;border-color:#7aa2f7'
-                : 'background:#1a3a2a;color:#4ade80;border-color:#4ade80;pointer-events:none')
+              ? 'background:#222;color:#7aa2f7;border-color:#7aa2f7'
+              : 'background:#1a3a2a;color:#4ade80;border-color:#4ade80;pointer-events:none')
             : 'background:#222;color:#7aa2f7;border-color:#7aa2f7';
           html += `
             <div class="ext-preset-card ext-preset-install" data-preset-id="${esc(p.id)}" style="padding:6px 8px;border:1px solid ${installed ? '#2a4a3a' : '#333'};border-radius:6px;background:${installed ? '#1a2a22' : '#1a1a28'}">
@@ -1566,27 +1577,27 @@
 
       // Built-in Chinese voices (works without server)
       const BUILTIN_VOICES = [
-        {id:'zh-CN-XiaoxiaoNeural',gender:'Female',locale:'zh-CN'},
-        {id:'zh-CN-XiaoyiNeural',gender:'Female',locale:'zh-CN'},
-        {id:'zh-CN-YunjianNeural',gender:'Male',locale:'zh-CN'},
-        {id:'zh-CN-YunxiNeural',gender:'Male',locale:'zh-CN'},
-        {id:'zh-CN-YunxiaNeural',gender:'Male',locale:'zh-CN'},
-        {id:'zh-CN-YunyangNeural',gender:'Male',locale:'zh-CN'},
-        {id:'zh-CN-liaoning-XiaobeiNeural',gender:'Female',locale:'zh-CN-liaoning'},
-        {id:'zh-CN-shaanxi-XiaoniNeural',gender:'Female',locale:'zh-CN-shaanxi'},
-        {id:'zh-HK-HiuGaaiNeural',gender:'Female',locale:'zh-HK'},
-        {id:'zh-HK-HiuMaanNeural',gender:'Female',locale:'zh-HK'},
-        {id:'zh-HK-WanLungNeural',gender:'Male',locale:'zh-HK'},
-        {id:'zh-TW-HsiaoChenNeural',gender:'Female',locale:'zh-TW'},
-        {id:'zh-TW-YunJheNeural',gender:'Male',locale:'zh-TW'},
-        {id:'zh-TW-HsiaoYuNeural',gender:'Female',locale:'zh-TW'},
-        {id:'en-US-JennyNeural',gender:'Female',locale:'en-US'},
-        {id:'en-US-GuyNeural',gender:'Male',locale:'en-US'},
-        {id:'en-US-AriaNeural',gender:'Female',locale:'en-US'},
-        {id:'ja-JP-NanamiNeural',gender:'Female',locale:'ja-JP'},
-        {id:'ja-JP-KeitaNeural',gender:'Male',locale:'ja-JP'},
-        {id:'ko-KR-SunHiNeural',gender:'Female',locale:'ko-KR'},
-        {id:'ko-KR-InJoonNeural',gender:'Male',locale:'ko-KR'},
+        { id: 'zh-CN-XiaoxiaoNeural', gender: 'Female', locale: 'zh-CN' },
+        { id: 'zh-CN-XiaoyiNeural', gender: 'Female', locale: 'zh-CN' },
+        { id: 'zh-CN-YunjianNeural', gender: 'Male', locale: 'zh-CN' },
+        { id: 'zh-CN-YunxiNeural', gender: 'Male', locale: 'zh-CN' },
+        { id: 'zh-CN-YunxiaNeural', gender: 'Male', locale: 'zh-CN' },
+        { id: 'zh-CN-YunyangNeural', gender: 'Male', locale: 'zh-CN' },
+        { id: 'zh-CN-liaoning-XiaobeiNeural', gender: 'Female', locale: 'zh-CN-liaoning' },
+        { id: 'zh-CN-shaanxi-XiaoniNeural', gender: 'Female', locale: 'zh-CN-shaanxi' },
+        { id: 'zh-HK-HiuGaaiNeural', gender: 'Female', locale: 'zh-HK' },
+        { id: 'zh-HK-HiuMaanNeural', gender: 'Female', locale: 'zh-HK' },
+        { id: 'zh-HK-WanLungNeural', gender: 'Male', locale: 'zh-HK' },
+        { id: 'zh-TW-HsiaoChenNeural', gender: 'Female', locale: 'zh-TW' },
+        { id: 'zh-TW-YunJheNeural', gender: 'Male', locale: 'zh-TW' },
+        { id: 'zh-TW-HsiaoYuNeural', gender: 'Female', locale: 'zh-TW' },
+        { id: 'en-US-JennyNeural', gender: 'Female', locale: 'en-US' },
+        { id: 'en-US-GuyNeural', gender: 'Male', locale: 'en-US' },
+        { id: 'en-US-AriaNeural', gender: 'Female', locale: 'en-US' },
+        { id: 'ja-JP-NanamiNeural', gender: 'Female', locale: 'ja-JP' },
+        { id: 'ja-JP-KeitaNeural', gender: 'Male', locale: 'ja-JP' },
+        { id: 'ko-KR-SunHiNeural', gender: 'Female', locale: 'ko-KR' },
+        { id: 'ko-KR-InJoonNeural', gender: 'Male', locale: 'ko-KR' },
       ];
 
       let allVoices = BUILTIN_VOICES;
@@ -1629,9 +1640,9 @@
               allVoices = data.voices;
               renderVoices();
             }
-          } catch {}
+          } catch { }
         },
-        onerror: () => {}, ontimeout: () => {},
+        onerror: () => { }, ontimeout: () => { },
       });
 
       localeFilter?.addEventListener('change', renderVoices);
@@ -1702,26 +1713,25 @@
 
     // Watch a container until its text stops changing, then play TTS
     function _watchTextStable(container, selectors) {
+      const selectorStr = selectors.split(',').map(s => s.trim()).join(',');
       let lastLen = 0;
       let stableCount = 0;
       const check = setInterval(() => {
-        const md = container.querySelector(selectors.split(',').map(s => s.trim()).join(','));
-        const len = md ? md.textContent.trim().length : 0;
+        const md = container.querySelector(selectorStr);
+        if (!md) return;
+        const len = md.textContent.length;
         if (len > 0 && len === lastLen) {
           stableCount++;
         } else {
           stableCount = 0;
           lastLen = len;
         }
-        // Text stable for 3 consecutive checks (1.5s) AND has content
-        if (stableCount >= 3 && lastLen > 10) {
+        if (stableCount >= 2 && lastLen > 10) {
           clearInterval(check);
           _ttsAutoPlayTimers.delete(container);
-          const finalText = md.textContent.trim();
-          ttsClient.play(finalText).catch(err => console.warn('Auto TTS:', err.message));
+          ttsClient.play(md.textContent.trim()).catch(err => console.warn('Auto TTS:', err.message));
         }
-      }, 500);
-      // Safety: stop watching after 60s
+      }, 1000);
       setTimeout(() => clearInterval(check), 60000);
       _ttsAutoPlayTimers.set(container, check);
     }
@@ -1730,13 +1740,29 @@
     //  MutationObserver — TTS button injection
     // ═══════════════════════════════════════════════════════════════
     let _uiDebounce = null;
-    const uiObserver = new MutationObserver(() => {
+    const uiObserver = new MutationObserver((mutations) => {
+      let hasNewNodes = false;
+      for (const m of mutations) {
+        if (m.addedNodes.length > 0) { hasNewNodes = true; break; }
+      }
+      if (!hasNewNodes) return;
       if (_uiDebounce) clearTimeout(_uiDebounce);
-      _uiDebounce = setTimeout(() => { injectTTSButtons(); }, 300);
+      _uiDebounce = setTimeout(() => {
+        const _run = () => injectTTSButtons();
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(_run, { timeout: 2000 });
+        } else {
+          setTimeout(_run, 200);
+        }
+      }, 1000);
     });
 
     setTimeout(() => {
-      uiObserver.observe(document.body, { childList: true, subtree: true });
+      const chatContainer = document.querySelector('[class*="chat-message-list"]')
+        || document.querySelector('[class*="message-list"]')
+        || document.querySelector('main')
+        || document.body;
+      uiObserver.observe(chatContainer, { childList: true, subtree: true });
       injectTTSButtons();
     }, 2000);
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.1.0] - 2026-04-28
+
+### Fixed
+- **性能修复**: 解决 Chrome + 搜狗输入法严重卡顿问题
+  - MutationObserver 缩小监听范围（body → 聊天容器），debounce 300ms→1000ms，改用 requestIdleCallback 延迟执行
+  - XHR SSE 解析从全量重解析改为增量解析，避免流式输出时 CPU 开销
+  - _watchTextStable 轮询间隔 500ms→1000ms，预计算 selector，减少强制回流
+  - 修复 SSE 增量解析跨事件截断导致 token 丢失的边界 bug
+
 ## [4.0.0] - 2026-04-26
 
 ### Added
